@@ -2,10 +2,11 @@
 // See copyright notice in src/uni/license.d (BOOST ver. 1.0 license).
 
 /**
- * This file holds a bootstrap builder, so that the makefiles
- * for the different platform/targets can be made much simpler.
+ * Example file that builds the volt compiler.
+ *
+ * Uses llvm-config to get info about llvm.
  */
-module bootstrap;
+module volt;
 
 import std.string : tolower, format;
 import std.cstream : dout;
@@ -13,7 +14,8 @@ import std.cstream : dout;
 import uni.core.def : getMachine, getPlatform;
 import uni.core.target : Instance, Target, Rule;
 import uni.core.solver : build;
-import uni.util.env : findCmd, getEnv, getEnvSplit, isEnvSet;
+import uni.util.cmd : getOutput;
+import uni.util.env : findCmd, getEnv, getEnvSplit, isEnvSet, splitIntoArgs;
 import uni.util.path : baseName, makeToOutput, listDir;
 
 import dlang = uni.lang.d;
@@ -26,13 +28,18 @@ import dlang = uni.lang.d;
  */
 
 
-string cmdDMD = "gdmd-v1";
+/** often gcc on linux, dmc on windows */
+string cmdCC = "gcc";
+
+string cmdDMD = "gdmd";
+
+string cmdLlvmConfig = "llvm-config";
 
 string machine = getMachine();
 
 string platform = getPlatform();
 
-string target = "unicorn";
+string target = "compiler";
 
 string[] flagsD = [];
 
@@ -41,8 +48,6 @@ string[] flagsLD = [];
 string objectEnding = ".o";
 
 string ddepEnding = ".dd";
-
-string resDir = "res";
 
 string sourceDir = "src";
 
@@ -53,20 +58,18 @@ bool optionDmd = false;
 bool debugPrint = false;
 
 
-/*
- *
- * Main entry point.
- *
+/**
+ * Build the volt compiler.
  */
-
-
-int main(char[][] args)
+void buildVolt()
 {
 	/*
 	 * First find the compilers.
 	 */
 
+	cmdCC = findCmd([cmdCC], "CC", cmdCC);
 	cmdDMD = findCmd(["dmd", cmdDMD, "gdmd"], "DMD", cmdDMD);
+	cmdLlvmConfig = findCmd([cmdLlvmConfig], "LLVM_CONFIG", cmdLlvmConfig);
 
 
 	/*
@@ -91,13 +94,20 @@ int main(char[][] args)
 	flagsD = ["-c", "-w", "-I" ~ sourceDir];
 	flagsLD = [];
 
-	machine = getEnv("MACHINE", machine);
-	platform = getEnv("PLATFORM", platform);
+
+	/*
+	 * LLVM setup.
+	 */
+
+	flagsLD ~= getLlvmFlagsLD();
 
 
 	/*
 	 * Platform specific settings.
 	 */
+
+	machine = getEnv("MACHINE", machine);
+	platform = getEnv("PLATFORM", platform);
 
 	switch(platform) {
 	case "mac":
@@ -114,7 +124,7 @@ int main(char[][] args)
 
 	default:
 		dout.writefln("Unknown platform! %s", platform);
-		return -1;
+		return;
 	}
 
 
@@ -139,6 +149,7 @@ int main(char[][] args)
 	 */
 
 	if (debugPrint) {
+		dout.writefln("CC: ", cmdCC);
 		dout.writefln("DMD: ", cmdDMD);
 		dout.writefln("DFLAGS: ", flagsD);
 		dout.writefln("LDFLAGS: ", flagsLD);
@@ -149,7 +160,6 @@ int main(char[][] args)
 	/*
 	 * Create all the rules.
 	 */
-
 
 	auto i = new Instance();
 
@@ -164,10 +174,32 @@ int main(char[][] args)
 	 * And build.
 	 */
 
-
 	build(exe);
+}
 
-	return 0;
+/**
+ * Calls llvm-config and extracts the needed ld flags.
+ */
+string[] getLlvmFlagsLD()
+{
+	string[] args = [
+		"--ldflags",
+		"--libs",
+		"core",
+		"analysis",
+		"scalaropts",
+		"bitwriter",
+		"ipo",
+	];
+
+	auto output = getOutput(cmdLlvmConfig, args);
+	string[] ret = splitIntoArgs(output);
+
+	foreach(ref r; ret)
+		r = "-L" ~ r;
+	ret ~= "-L-lstdc++";
+
+	return ret;
 }
 
 
@@ -199,9 +231,7 @@ Target[] createDRules(Instance i)
 
 		ret ~= createSimpleRule(i, t, obj, dep, cmdDMD, args.dup, print);
 	}
-	listDir(sourceDir ~ "/uni", "*.d", i, &func);
-	listDir(sourceDir ~ "/example", "*.d", i, &func);
-	func(i.fileNoRule(sourceDir ~ "/main.d"));
+	listDir(sourceDir, "*.d", i, &func);
 
 	return ret;
 }

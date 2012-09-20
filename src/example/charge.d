@@ -2,10 +2,11 @@
 // See copyright notice in src/uni/license.d (BOOST ver. 1.0 license).
 
 /**
- * This file holds a bootstrap builder, so that the makefiles
- * for the different platform/targets can be made much simpler.
+ * Example file that builds the game Charged-Miners.
+ *
+ * http://charged-miners.com
  */
-module bootstrap;
+module example.charge;
 
 import std.string : tolower, format;
 import std.cstream : dout;
@@ -26,15 +27,22 @@ import dlang = uni.lang.d;
  */
 
 
+/** often gcc on linux, dmc on windows */
+string cmdCC = "gcc";
+
 string cmdDMD = "gdmd-v1";
 
 string machine = getMachine();
 
 string platform = getPlatform();
 
-string target = "unicorn";
+string target = "Charge";
 
 string[] flagsD = [];
+
+string[] flagsC = [];
+
+string[] flagsM = [];
 
 string[] flagsLD = [];
 
@@ -48,24 +56,22 @@ string sourceDir = "src";
 
 string outputDir;
 
+bool optionDmc = false;
+
 bool optionDmd = false;
 
 bool debugPrint = false;
 
 
-/*
- *
- * Main entry point.
- *
- */
 
 
-int main(char[][] args)
+void buildCharge()
 {
 	/*
 	 * First find the compilers.
 	 */
 
+	cmdCC = findCmd([cmdCC], "CC", cmdCC);
 	cmdDMD = findCmd(["dmd", cmdDMD, "gdmd"], "DMD", cmdDMD);
 
 
@@ -75,6 +81,7 @@ int main(char[][] args)
 
 	version(Windows) {
 		// XXX Actually check if this is needed.
+		optionDmc = true;
 		optionDmd = true;
 
 		// On windows DMD requires this.
@@ -88,20 +95,27 @@ int main(char[][] args)
 	 * Setup flags initial flags first.
 	 */
 
-	flagsD = ["-c", "-w", "-I" ~ sourceDir];
+	flagsC = ["-c"];
+	flagsD = ["-c", "-w",
+	          "-I" ~ sourceDir,
+	          "-J" ~ resDir ~ "/builtins",
+	          "-J" ~ resDir ~ "/miners"];
+	flagsM = ["-c"];
 	flagsLD = [];
-
-	machine = getEnv("MACHINE", machine);
-	platform = getEnv("PLATFORM", platform);
 
 
 	/*
 	 * Platform specific settings.
 	 */
 
+	machine = getEnv("MACHINE", machine);
+	platform = getEnv("PLATFORM", platform);
+
 	switch(platform) {
 	case "mac":
-		flagsLD ~= ["-L-ldl"];
+		flagsC ~= ["-arch", "i386", "-arch", "x86_64"];
+		flagsM ~= ["-arch", "i386", "-arch", "x86_64"];
+		flagsLD ~= ["-L-ldl", "-L-framework", "-LCocoa"];
 		break;
 
 	case "linux":
@@ -110,12 +124,28 @@ int main(char[][] args)
 
 	case "windows":
 		target ~= ".exe";
+		if (!optionDmd)
+			flagsLD ~= ["-L-lgphobos", "-L-lws2_32"];
 		break;
 
 	default:
 		dout.writefln("Unknown platform! %s", platform);
-		return -1;
+		return;
 	}
+
+
+	/*
+	 * Optional components.
+	 */
+	if (isEnvSet("USE_SDL"))
+		flagsLD ~= ["-L-lSDL"];
+	else
+		flagsD ~= ["-version=DynamicSDL"];
+
+	if (isEnvSet("USE_ODE"))
+		flagsLD ~= ["-L-L.", "-L-lode", "-L-lstdc++"];
+	else
+		flagsD ~= ["-version=DynamicODE"];
 
 
 	/*
@@ -123,6 +153,7 @@ int main(char[][] args)
 	 */
 
 	string debugFlag = optionDmd ? "-gc" : "-g";
+	flagsC ~= getEnvSplit("CFLAGS", ["-g"]);
 	flagsD ~= getEnvSplit("DFLAGS", [debugFlag, "-debug"]);
 	flagsLD ~= getEnvSplit("LDFLAGS", ["-quiet", debugFlag, "-debug"]);
 
@@ -139,7 +170,9 @@ int main(char[][] args)
 	 */
 
 	if (debugPrint) {
+		dout.writefln("CC: ", cmdCC);
 		dout.writefln("DMD: ", cmdDMD);
+		dout.writefln("CFLAGS: ", flagsC);
 		dout.writefln("DFLAGS: ", flagsD);
 		dout.writefln("LDFLAGS: ", flagsLD);
 		dout.writefln("PLATFORM: ", platform);
@@ -150,11 +183,11 @@ int main(char[][] args)
 	 * Create all the rules.
 	 */
 
-
 	auto i = new Instance();
 
 	Target[] targets;
 
+	targets ~= createCRules(i);
 	targets ~= createDRules(i);
 
 	auto exe = createExeRule(i, targets);
@@ -164,10 +197,7 @@ int main(char[][] args)
 	 * And build.
 	 */
 
-
 	build(exe);
-
-	return 0;
 }
 
 
@@ -177,6 +207,34 @@ int main(char[][] args)
  *
  */
 
+
+Target[] createCRules(Instance i)
+{
+	Target[] ret;
+	string[] args;
+
+	args.length = flagsC.length + (optionDmc ? 2 : 3);
+	args[0 .. flagsC.length] = flagsC[0 .. $];
+
+	void func(Target t) {
+		auto obj = makeToOutput(t.name, sourceDir, outputDir, ".c", objectEnding);
+		auto print = "  CC     " ~ t.name;
+
+		if (optionDmc) {
+			args[$ - 2] = format(`-o"%s"`, obj);
+		} else {
+			args[$ - 3] = "-o";
+			args[$ - 2] = obj;
+		}
+
+		args[$ - 1] = t.name;
+
+		ret ~= createSimpleRule(i, t, obj, null, cmdCC, args.dup, print);
+	}
+	listDir(sourceDir, "*.c", i, &func);
+
+	return ret;
+}
 
 Target[] createDRules(Instance i)
 {
@@ -199,9 +257,7 @@ Target[] createDRules(Instance i)
 
 		ret ~= createSimpleRule(i, t, obj, dep, cmdDMD, args.dup, print);
 	}
-	listDir(sourceDir ~ "/uni", "*.d", i, &func);
-	listDir(sourceDir ~ "/example", "*.d", i, &func);
-	func(i.fileNoRule(sourceDir ~ "/main.d"));
+	listDir(sourceDir, "*.d", i, &func);
 
 	return ret;
 }
