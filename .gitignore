@@ -1,0 +1,7 @@
+.obj
+build*
+.buildpath
+.externalToolBuilds
+.project
+unicorn*
+*.sh
