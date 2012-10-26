@@ -8,7 +8,7 @@ module uni.util.cmd;
 
 version(Windows) {
 
-	import std.c.windows.windows :
+	import core.sys.windows.windows :
 		HANDLE, BOOL, WAIT_OBJECT_0,
 		CloseHandle,
 		WaitForSingleObject,
@@ -286,7 +286,7 @@ public:
 			uint uRet;
 			bool bRet;
 			auto keys = waiting.keys;
-			auto ptr = keys.ptr;
+			auto ptr = cast(HANDLE*)keys.ptr;
 			auto hCount = cast(uint)keys.length;
 
 			// The code assumes this, so check for it.
@@ -296,7 +296,7 @@ public:
 			if (uRet < 0 && uRet >= hCount)
 				throw new Exception("Wait failed");
 
-			auto hProcess = keys[uRet];
+			auto hProcess = cast(HANDLE)keys[uRet];
 			keys = null;
 
 			scope(exit)
@@ -493,8 +493,8 @@ version(Windows) {
 	}
 
 	extern(System) bool CreateProcessA(
-		char* lpApplicationName,
-		char* lpCommandLine,
+		const(char)* lpApplicationName,
+		const(char)* lpCommandLine,
 		void* lpProcessAttributes,
 		void* lpThreadAttributes,
 		bool bInheritHandles,

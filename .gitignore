@@ -1,7 +1,9 @@
 .obj
 build*
+bin
 .buildpath
 .externalToolBuilds
+.externalToolBuilders
 .project
 unicorn*
 *.sh
