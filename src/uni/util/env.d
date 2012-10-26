@@ -8,6 +8,10 @@ module uni.util.env;
 
 version(Windows) {
 
+	import std.string : split;
+	import std.algorithm : endsWith;
+	import std.file : exists;
+
 } else version(Posix) {
 
 	import core.sys.posix.stdio : FILE, fgets, fclose, popen;
@@ -97,7 +101,20 @@ string findCmd(string[] names, string envName, string def)
 	}
 
 	version(Windows) {
-		/* XXX search the path */
+		auto lines = split(getEnv("PATH"), ";");
+
+		foreach(n; names) {
+			// Needs to add .exe at the end.
+			if (!endsWith(n, ".exe"))
+				n ~= ".exe";
+
+			foreach(l; lines) {
+				auto tmp = l ~ "\\" ~ n;
+
+				if (exists(tmp))
+					return tmp;
+			}
+		}
 	} else { /* Linux/MacOSX */
 		foreach(n; names) {
 			// About as standard location as possible.
