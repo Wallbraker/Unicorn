@@ -6,7 +6,7 @@
  */
 module main;
 
-import std.string : find;
+import std.string : indexOf;
 import std.stdio : writefln;
 import std.file : getcwd;
 
@@ -38,9 +38,9 @@ int main(string[] args)
 
 	auto pwd = getcwd();
 
-	if (find(pwd, "charge") >= 0)
+	if (indexOf(pwd, "charge") >= 0)
 		buildCharge();
-	else if (find(pwd, "volt") >= 0)
+	else if (indexOf(pwd, "volt") >= 0)
 		buildVolt();
 
 	return 0;

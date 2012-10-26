@@ -6,7 +6,7 @@
  */
 module uni.lang.d;
 
-import std.string : splitlines, find, replace;
+import std.string : splitLines, indexOf, replace;
 import std.file : read;
 
 import uni.core.target : Instance, Target;
@@ -19,9 +19,9 @@ import uni.core.target : Instance, Target;
  */
 void addDeps(Instance i, Target t, string dep)
 {
-	string str;
+	char[] str;
 	try {
-		str = cast(string)read(dep);
+		str = cast(char[])read(dep);
 	} catch (Exception e) {
 		return;
 	}
@@ -30,8 +30,8 @@ void addDeps(Instance i, Target t, string dep)
 		throw new Exception("Malformed d-dep file \"" ~ dep ~ "\"");
 	}
 
-	size_t findCheck(string str, string sub) {
-		auto pos = find(str, sub);
+	size_t findCheck(const(char)[] str, string sub) {
+		auto pos = indexOf(str, sub);
 
 		if (pos <= 0)
 			throwMalformed();
@@ -40,9 +40,9 @@ void addDeps(Instance i, Target t, string dep)
 
 	bool[string] added;
 
-	foreach(l; splitlines(str)) {
+	foreach(l; splitLines(str)) {
 		// Find the end of the fist () pair.
-		auto pos = cast(size_t)findCheck(l, ")");
+		auto pos = findCheck(l, ")");
 
 		// After that find the second () pair.
 		size_t start = findCheck(l[pos .. $], "(") + pos + 1;
@@ -52,12 +52,13 @@ void addDeps(Instance i, Target t, string dep)
 		if (tmp in added)
 			continue;
 
+		string name = tmp.idup;
 		// Keep track of which files are already added.
-		added[tmp] = true;
+		added[name] = true;
 
 		version(Windows)
-			tmp = replace(l[start .. end], "\\\\", "\\");
+			name = replace(l[start .. end], "\\\\", "\\").idup;
 
-		t.deps ~= i.file(tmp);
+		t.deps ~= i.file(name);
 	}
 }

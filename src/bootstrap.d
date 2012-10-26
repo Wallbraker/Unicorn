@@ -7,7 +7,7 @@
  */
 module bootstrap;
 
-import std.string : tolower, format;
+import std.string : toLower, format;
 import std.cstream : dout;
 
 import uni.core.def : getMachine, getPlatform;
@@ -26,31 +26,31 @@ import dlang = uni.lang.d;
  */
 
 
-string cmdDMD = "gdmd-v1";
+__gshared string cmdDMD = "gdmd";
 
-string machine = getMachine();
+__gshared string machine = getMachine();
 
-string platform = getPlatform();
+__gshared string platform = getPlatform();
 
-string target = "unicorn";
+__gshared string target = "unicorn";
 
-string[] flagsD = [];
+__gshared string[] flagsD = [];
 
-string[] flagsLD = [];
+__gshared string[] flagsLD = [];
 
-string objectEnding = ".o";
+__gshared string objectEnding = ".o";
 
-string ddepEnding = ".dd";
+__gshared string ddepEnding = ".dd";
 
-string resDir = "res";
+__gshared string resDir = "res";
 
-string sourceDir = "src";
+__gshared string sourceDir = "src";
 
-string outputDir;
+__gshared string outputDir;
 
-bool optionDmd = false;
+__gshared bool optionDmd = false;
 
-bool debugPrint = false;
+__gshared bool debugPrint = false;
 
 
 /*
@@ -80,7 +80,7 @@ int main(char[][] args)
 		// On windows DMD requires this.
 		objectEnding = ".obj";
 	}
-	auto str = tolower(baseName(cmdDMD));
+	auto str = toLower(baseName(cmdDMD));
 	if (str == "dmd")
 		optionDmd = true;
 

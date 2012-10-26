@@ -8,14 +8,9 @@ module uni.util.env;
 
 version(Windows) {
 
-	extern (C) char* getenv(char*);
-
 } else version(Posix) {
 
-	import std.c.stdio : FILE, fgets, fclose;
-
-	extern (C) char* getenv(char*);
-	extern (C) FILE* popen(char*, char*);
+	import core.sys.posix.stdio : FILE, fgets, fclose, popen;
 
 } else {
 
@@ -23,8 +18,10 @@ version(Windows) {
 
 }
 
-import std.string : format, splitlines, toString, toStringz, iswhite;
-import std.c.stdlib : alloca;
+import core.stdc.stdlib : alloca, getenv;
+import std.conv : to;
+import std.ascii : isWhite;
+import std.string : format, splitLines, toStringz;
 
 import uni.util.cmd : getOutput;
 
@@ -34,7 +31,8 @@ import uni.util.cmd : getOutput;
  */
 bool isEnvSet(string name)
 {
-	return getenv(cast(char*)name.ptr) !is null;
+	auto namez = toStringz(name);
+	return getenv(namez) !is null;
 }
 
 /**
@@ -42,12 +40,12 @@ bool isEnvSet(string name)
  */
 string getEnv(string name)
 {
-	auto namez = cast(char*)toStringz(name);
+	auto namez = toStringz(name);
 	auto t = getenv(namez);
 
 	if (t is null)
 		return null;
-	return toString(t);
+	return to!string(t);
 }
 
 /**
@@ -108,7 +106,7 @@ string findCmd(string[] names, string envName, string def)
 			if (r is null || r[0] == 0)
 				continue;
 
-			return splitlines(r)[0].dup;
+			return splitLines(r)[0].idup;
 		}
 	}
 
@@ -123,9 +121,16 @@ string findCmd(string[] names, string envName, string def)
  */
 string[] splitIntoArgs(string str)
 {
-	char[] tmp = (cast(char*)alloca(str.length))[0 .. str.length];
+	char* ptr;
+	char[] tmp;
 	size_t pos;
 	string[] ret;
+
+	ptr = cast(char*)alloca(str.length);
+	if (ptr is null)
+		tmp.length = str.length;
+	else
+		tmp = ptr[0 .. str.length];
 
 	enum State {
 		WHITESPACE,
@@ -149,14 +154,14 @@ string[] splitIntoArgs(string str)
 	void done() {
 		if (pos == 0)
 			return;
-		ret ~= tmp[0 .. pos].dup;
+		ret ~= tmp[0 .. pos].idup;
 		pos = 0;
 	}
 
 	foreach(c; str) {
 		switch(state) {
 		case State.WHITESPACE:
-			if (iswhite(c)) {
+			if (isWhite(c)) {
 				continue;
 			} else if (c == '\\') {
 				escape();
@@ -168,7 +173,7 @@ string[] splitIntoArgs(string str)
 			}
 			break;
 		case State.NORMAL:
-			if (iswhite(c)) {
+			if (isWhite(c)) {
 				done();
 				state = State.WHITESPACE;
 			} else if (c == '\\') {

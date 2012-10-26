@@ -8,7 +8,7 @@
  */
 module example.charge;
 
-import std.string : tolower, format;
+import std.string : toLower, format;
 import std.cstream : dout;
 
 import uni.core.def : getMachine, getPlatform;
@@ -28,39 +28,39 @@ import dlang = uni.lang.d;
 
 
 /** often gcc on linux, dmc on windows */
-string cmdCC = "gcc";
+__gshared string cmdCC = "gcc";
 
-string cmdDMD = "gdmd-v1";
+__gshared string cmdDMD = "gdmd-v1";
 
-string machine = getMachine();
+__gshared string machine = getMachine();
 
-string platform = getPlatform();
+__gshared string platform = getPlatform();
 
-string target = "Charge";
+__gshared string target = "Charge";
 
-string[] flagsD = [];
+__gshared string[] flagsD = [];
 
-string[] flagsC = [];
+__gshared string[] flagsC = [];
 
-string[] flagsM = [];
+__gshared string[] flagsM = [];
 
-string[] flagsLD = [];
+__gshared string[] flagsLD = [];
 
-string objectEnding = ".o";
+__gshared string objectEnding = ".o";
 
-string ddepEnding = ".dd";
+__gshared string ddepEnding = ".dd";
 
-string resDir = "res";
+__gshared string resDir = "res";
 
-string sourceDir = "src";
+__gshared string sourceDir = "src";
 
-string outputDir;
+__gshared string outputDir;
 
-bool optionDmc = false;
+__gshared bool optionDmc = false;
 
-bool optionDmd = false;
+__gshared bool optionDmd = false;
 
-bool debugPrint = false;
+__gshared bool debugPrint = false;
 
 
 
@@ -87,7 +87,7 @@ void buildCharge()
 		// On windows DMD requires this.
 		objectEnding = ".obj";
 	}
-	auto str = tolower(baseName(cmdDMD));
+	auto str = toLower(baseName(cmdDMD));
 	if (str == "dmd")
 		optionDmd = true;
 
@@ -273,7 +273,7 @@ Target createExeRule(Instance ins, Target[] targets)
 
 	string[] args; uint path;
 	args.length = flagsLD.length + targets.length + 1;
-	args[0 .. flagsLD.length] = flagsLD[0 .. $];
+	args[0 .. flagsLD.length] = flagsLD;
 	args[flagsLD.length] = "-of" ~ target;
 	for (int i, k = cast(int)flagsLD.length + 1; i < targets.length; i++, k++)
 		args[k] = targets[i].name;

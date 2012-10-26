@@ -8,7 +8,7 @@
  */
 module volt;
 
-import std.string : tolower, format;
+import std.string : toLower, format;
 import std.cstream : dout;
 
 import uni.core.def : getMachine, getPlatform;
@@ -29,33 +29,33 @@ import dlang = uni.lang.d;
 
 
 /** often gcc on linux, dmc on windows */
-string cmdCC = "gcc";
+__gshared string cmdCC = "gcc";
 
-string cmdDMD = "gdmd";
+__gshared string cmdDMD = "gdmd";
 
-string cmdLlvmConfig = "llvm-config";
+__gshared string cmdLlvmConfig = "llvm-config";
 
-string machine = getMachine();
+__gshared string machine = getMachine();
 
-string platform = getPlatform();
+__gshared string platform = getPlatform();
 
-string target = "compiler";
+__gshared string target = "compiler";
 
-string[] flagsD = [];
+__gshared string[] flagsD = [];
 
-string[] flagsLD = [];
+__gshared string[] flagsLD = [];
 
-string objectEnding = ".o";
+__gshared string objectEnding = ".o";
 
-string ddepEnding = ".dd";
+__gshared string ddepEnding = ".dd";
 
-string sourceDir = "src";
+__gshared string sourceDir = "src";
 
-string outputDir;
+__gshared string outputDir;
 
-bool optionDmd = false;
+__gshared bool optionDmd = false;
 
-bool debugPrint = false;
+__gshared bool debugPrint = false;
 
 
 /**
@@ -83,7 +83,7 @@ void buildVolt()
 		// On windows DMD requires this.
 		objectEnding = ".obj";
 	}
-	auto str = tolower(baseName(cmdDMD));
+	auto str = toLower(baseName(cmdDMD));
 	if (str == "dmd")
 		optionDmd = true;
 

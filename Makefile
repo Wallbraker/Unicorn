@@ -8,12 +8,9 @@ UNAME ?= $(HOST_UNAME)
 MACHINE ?= $(strip $(shell uname -m))
 
 ifeq ($(strip $(DMD)),)
-  DMD := $(shell which gdmd-v1)
+  DMD := $(shell which gdmd)
   ifeq ($(strip $(DMD)),)
-    DMD := $(shell which gdmd)
-    ifeq ($(strip $(DMD)),)
-      DMD = gdmd
-    endif
+    DMD = gdmd
   endif
 endif
 

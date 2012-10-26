@@ -16,19 +16,15 @@ version(Windows) {
 
 } else version(Posix) {
 
-	// XXX: GDC hates me.
-	version(Unix) {
-		import std.c.unix.unix : fork, pid_t, waitpid;
-	} else {
-		import std.c.posix.posix : fork, pid_t, waitpid;
-	}
-
-	import std.c.stdio : FILE, fread;
+	import core.sys.posix.unistd : fork, pid_t;
+	import core.sys.posix.sys.wait : waitpid;
+	import core.stdc.stdio : FILE, fread;
+	import core.stdc.stdlib : exit;
+	import core.stdc.errno : errno;
 	import std.c.process : execvp;
-	import std.c.stdlib : exit, getErrno;
 
 	// Couldn't find these in the standard headers.
-	extern(C) FILE* popen(char*, char*);
+	extern(C) FILE* popen(const(char)*, const(char)*);
 	extern(C) void pclose(FILE*);
 
 } else {
@@ -90,7 +86,7 @@ int system(string cmd, string[] args)
 		}
 
 		// This is an error path.
-		int errno = getErrno();
+		int errno = errno();
 		throw new CmdException(cmd, args, errno);
 
 	} else {
@@ -124,7 +120,7 @@ string getOutput(string cmd, string[] args)
 
 	} else version(Posix) {
 
-		char[1024*8] stack;
+		char[1024*16] stack;
 		string ret;
 
 		auto cmdPtr = writeArgsToStack(stack, cmd, args);
@@ -138,7 +134,7 @@ string getOutput(string cmd, string[] args)
 			throw new CmdException(
 				cmd, args, "To much data to read");
 
-		ret = stack[0 .. size].dup;
+		ret = stack[0 .. size].idup;
 
 		return ret;
 
@@ -338,7 +334,7 @@ public:
 				else if (stopped(status))
 					continue;
 				else
-					result = getErrno();
+					result = errno();
 
 				if ((pid in waiting) is null)
 					continue;
@@ -518,8 +514,8 @@ version(Windows) {
 
 	void _execvp(string cmd, string[] args)
 	{
-		char[1024*16] data = void;
-		char*[1024*4] argv = void;
+		char[1024*32] data = void;
+		char*[1024*8] argv = void;
 		size_t pos;
 		int i;
 
@@ -532,7 +528,6 @@ version(Windows) {
 		argv[i++] = add(cmd);
 		foreach(a; args)
 			argv[i++] = add(a);
-
 		argv[i] = null;
 
 		execvp(argv[0], &argv[0]);

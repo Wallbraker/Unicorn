@@ -6,7 +6,7 @@
  */
 module uni.core.target;
 
-import std.date : d_time;
+import std.datetime : SysTime;
 import std.file : getTimes;
 import std.string : format;
 
@@ -78,7 +78,7 @@ public:
 	Target deps[];
 
 	/// Cached last modified time.
-	d_time mod;
+	SysTime mod;
 
 public:
 	/// Updates the @mod field to the files last modified time.
@@ -89,11 +89,11 @@ public:
 			status = CHECKED;
 
 		try {
-			d_time c, a;
+			SysTime a;
 
-			getTimes(name, c, a, mod);
+			getTimes(name, a, mod);
 		} catch (Exception e) {
-			mod = d_time.min;
+			mod = SysTime.min;
 		}
 	}
 

@@ -6,15 +6,13 @@
  */
 module uni.util.path;
 
+import std.stdio;
 import std.string : sformat, replace;
-import std.file : exists, mkdir, listdir, DirEntry;
+import std.file : exists, mkdir, DirEntry, dirEntries, SpanMode;
 public import std.path;
 
 import uni.core.target : Instance, Target;
 
-
-alias getDirName dirName;
-alias getBaseName baseName;
 
 /**
  * Searches @dir for files matching pattern, foreach found
@@ -24,22 +22,19 @@ alias getBaseName baseName;
 void listDir(string dir, string pattern,
              Instance i, void delegate(Target t) dg)
 {
-	bool func(DirEntry *de) {
-		if (de.isdir) {
-			listdir(de.name, &func);
-			return true;
-		} else if (!fnmatch(de.name, pattern)) {
-			return true;
+	foreach(ref DirEntry de; dirEntries(dir, SpanMode.breadth)) {
+		if (de.isDir) {
+			continue;
+		} else if (!globMatch(de.name, pattern)) {
+			continue;
 		}
 
 		auto t = i.file(de.name);
-		t.mod = de.lastWriteTime;
+		t.mod = de.timeLastModified;
 		if (t.status < Target.CHECKED)
 			t.status = Target.CHECKED;
 		dg(t);
-		return true;
 	}
-	listdir(dir, &func);
 }
 
 /**
@@ -51,7 +46,7 @@ void mkdirP(string name)
 		return;
 
 	auto str = dirName(name);
-	if (str != "")
+	if (str != ".")
 		mkdirP(str);
 
 	if (!exists(name))
@@ -90,5 +85,5 @@ string makeToOutput(string name,
 		ret = data[0 .. pos].dup;
 
 	// Make sure we don't return a pointer to the stack.
-	return ret.ptr == data.ptr ? ret.dup : ret;
+	return ret.ptr == data.ptr ? ret.idup : cast(string)ret;
 }
