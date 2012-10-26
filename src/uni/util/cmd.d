@@ -438,7 +438,7 @@ version(Windows) {
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 
-		char[1024*8] stack;
+		char[1024*32] stack;
 		auto cmdPtr = writeArgsToStack(stack, cmd, args);
 
 		si.cb = cast(uint)si.sizeof;
