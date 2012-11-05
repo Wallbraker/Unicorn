@@ -10,6 +10,9 @@ version(Windows) {
 
 	import core.sys.windows.windows :
 		HANDLE, BOOL, WAIT_OBJECT_0,
+		SECURITY_ATTRIBUTES,
+		LPSECURITY_ATTRIBUTES,
+		ReadFile,
 		CloseHandle,
 		WaitForSingleObject,
 		WaitForMultipleObjects;
@@ -113,15 +116,84 @@ void runCommand(string cmd, string[] args)
  */
 string getOutput(string cmd, string[] args)
 {
+	char[1024*32] stack;
+	size_t size;
+	string ret;
+
 	version(Windows) {
 
-		throw new CmdException(
-			cmd, args, "getOutput not supported on this platform");
+		SECURITY_ATTRIBUTES saAttr;
+		PROCESS_INFORMATION pi;
+		STARTUPINFO si;
+		HANDLE hOut, hIn, hProcess;
+		uint uRet;
+		bool bRet;
+
+		saAttr.nLength = cast(uint)saAttr.sizeof;
+		saAttr.bInheritHandle = true;
+		saAttr.lpSecurityDescriptor = null;
+
+		bRet = cast(bool)CreatePipe(&hIn, &hOut, &saAttr, 0);
+		if (!bRet)
+			throw new CmdException(
+				cmd, args, "Could not create pipe");
+		scope(exit) {
+			CloseHandle(hIn);
+			CloseHandle(hOut);
+		}
+
+
+		// Ensure the read handle to the pipe for STDOUT is not inherited.
+		bRet = cast(bool)SetHandleInformation(hIn, HANDLE_FLAG_INHERIT, 0);
+		if (!bRet)
+			throw new CmdException(
+				cmd, args, "Failed to set hIn info");
+
+
+		auto cmdPtr = writeArgsToStack(stack, cmd, args);
+		si.cb = cast(uint)si.sizeof;
+		si.dwFlags |= STARTF_USESTDHANDLES;
+		si.hStdOutput = hOut;
+
+		bRet = CreateProcessA(
+			null,
+			cmdPtr,
+			null,
+			null,
+			true,
+			0,
+			null,
+			null,
+			&si,
+			&pi);
+
+		if (!bRet)
+			throw new CmdException(cmd, args, "failed to start program");
+
+		// Not interested in this.
+		CloseHandle(pi.hThread);
+		scope(exit)
+			CloseHandle(pi.hProcess);
+
+
+		// Wait for the process to close.
+		uRet = WaitForSingleObject(pi.hProcess, -1);
+		if (uRet)
+			throw new CmdException(
+				cmd, args, "Failed to wait for program");
+
+
+		// Read data from file.
+		bRet = cast(bool)ReadFile(
+			hIn, stack.ptr, cast(uint)stack.length, &uRet, null);
+		size = cast(size_t)uRet;
+
+		// Check result of read.
+		if (!bRet || size >= stack.length)
+			throw new CmdException(
+				cmd, args, "Failed to read from output file");
 
 	} else version(Posix) {
-
-		char[1024*16] stack;
-		string ret;
 
 		auto cmdPtr = writeArgsToStack(stack, cmd, args);
 		auto f = popen(cmdPtr, "r");
@@ -129,18 +201,18 @@ string getOutput(string cmd, string[] args)
 			throw new CmdException(
 				cmd, args, "Failed to launch the program");
 
-		auto size = fread(stack.ptr, 1, stack.length, f);
+		size = cast(size_t)fread(stack.ptr, 1, stack.length, f);
 		if (size == stack.length)
 			throw new CmdException(
 				cmd, args, "To much data to read");
 
-		ret = stack[0 .. size].idup;
-
-		return ret;
-
 	} else {
 		static assert(false);
 	}
+
+	ret = stack[0 .. size].idup;
+
+	return ret;
 }
 
 /**
@@ -464,6 +536,9 @@ version(Windows) {
 		return pi.hProcess;
 	}
 
+	const uint STARTF_USESTDHANDLES = 0x00000100;
+	const uint HANDLE_FLAG_INHERIT = 0x00000001;
+
 	struct STARTUPINFO {
 		uint  cb;
 		void* lpReserved;
@@ -491,6 +566,19 @@ version(Windows) {
 		uint dwProcessId;
 		uint dwThreadId;
 	}
+
+	extern(System) BOOL SetHandleInformation(
+		HANDLE hObject,
+		uint dwMask,
+		uint dwFlags
+	);
+
+	extern(System) BOOL CreatePipe(
+		HANDLE* hReadPipe,
+		HANDLE* hWritePipe,
+		LPSECURITY_ATTRIBUTES lpPipeAttributes,
+		uint nSize
+	);
 
 	extern(System) bool CreateProcessA(
 		const(char)* lpApplicationName,
