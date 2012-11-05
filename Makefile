@@ -19,6 +19,10 @@ OFILES = \
 all: unicorn-bootstrap.exe
 	@./unicorn-bootstrap.exe
 
+run: unicorn-bootstrap.exe
+	@./unicorn-bootstrap.exe
+	@./unicorn.exe
+
 clean:
 	@rmdir /s /q bin
 	@rmdir /s /q .obj
@@ -54,4 +58,4 @@ bin/bootstrap/uni/util/path.obj: src/uni/util/path.d
 	$(DCOMP) $(DCOMP_FLAGS) -c src/uni/util/path.d -ofbin/bootstrap/uni/util/path.obj
 
 
-.PHONY: all
+.PHONY: all run
