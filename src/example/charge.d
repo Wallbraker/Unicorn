@@ -72,7 +72,7 @@ void buildCharge()
 	 */
 
 	cmdCC = findCmd([cmdCC], "CC", cmdCC);
-	cmdDMD = findCmd(["dmd", cmdDMD, "gdmd"], "DMD", cmdDMD);
+	cmdDMD = dlang.findDmd(dlang.DVersion.D1);
 
 
 	/*

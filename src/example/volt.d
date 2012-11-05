@@ -68,7 +68,7 @@ void buildVolt()
 	 */
 
 	cmdCC = findCmd([cmdCC], "CC", cmdCC);
-	cmdDMD = findCmd(["dmd", cmdDMD, "gdmd"], "DMD", cmdDMD);
+	cmdDMD = dlang.findDmd();
 	cmdLlvmConfig = findCmd([cmdLlvmConfig], "LLVM_CONFIG", cmdLlvmConfig);
 
 

@@ -6,9 +6,13 @@
  */
 module uni.lang.d;
 
-import std.string : splitLines, indexOf, replace;
+import std.stdio : writefln;
+import std.regex : regex, match;
+import std.string : splitLines, indexOf, replace, split;
 import std.file : read;
 
+import uni.util.cmd : getOutput;
+import uni.util.env : getEnv, findCmd;
 import uni.core.target : Instance, Target;
 
 
@@ -61,4 +65,59 @@ void addDeps(Instance i, Target t, string dep)
 
 		t.deps ~= i.file(name);
 	}
+}
+
+/**
+ * Select D version in the findDmd command.
+ */
+enum DVersion
+{
+	D1 = 1,
+	D2 = 2,
+}
+
+/**
+ * Find DMD or GDC compiler.
+ */
+string findDmd(DVersion ver = DVersion.D2)
+{
+	auto reg = regex(ver == DVersion.D2 ? "DMD.*v2" : "DMD.*v1");
+	string ret;
+
+	version(Windows) {
+		string pathSeperator = ";";
+		string dmdBinary = "\\dmd.exe";
+	} else version(Posix) {
+		string pathSeperator = ":";
+		string dmdBinary = "/dmd";
+	} else {
+		static assert(false);
+	}
+
+	// Try the DMD envar first then gdmd.
+	ret = findCmd(ver == DVersion.D2 ? ["gdmd"] : ["gdmd-v1"], "DMD", null);
+	if (ret !is null)
+		return ret;
+
+	// Look for a matching DMD version.
+	auto path = getEnv("PATH");
+	foreach(n; split(path, pathSeperator)) {
+		try {
+			auto exe = n ~ dmdBinary;
+			auto l = splitLines(getOutput(exe, null));
+			if (l.length == 0)
+				continue;
+
+			auto m = match(l[0], reg);
+			if (!m.empty)
+				return exe;
+
+		} catch (Exception e) {
+		}
+	}
+
+	if (ver == DVersion.D2)
+		return "dmd";
+	else
+		return findCmd(["gdmd"], null, "dmd");
 }
