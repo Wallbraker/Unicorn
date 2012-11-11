@@ -9,7 +9,7 @@ module uni.lang.d;
 import std.stdio : writefln;
 import std.regex : regex, match;
 import std.string : splitLines, indexOf, replace, split;
-import std.file : read;
+import std.file : read, exists;
 
 import uni.util.cmd : getOutput;
 import uni.util.env : getEnv, findCmd;
@@ -104,6 +104,9 @@ string findDmd(DVersion ver = DVersion.D2)
 	foreach(n; split(path, pathSeperator)) {
 		try {
 			auto exe = n ~ dmdBinary;
+			if (!exists(exe))
+				continue;
+
 			auto l = splitLines(getOutput(exe, null));
 			if (l.length == 0)
 				continue;
