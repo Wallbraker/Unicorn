@@ -6,7 +6,6 @@
  */
 module uni.util.path;
 
-import std.stdio;
 import std.string : sformat, replace;
 import std.file : exists, mkdir, DirEntry, dirEntries, SpanMode;
 public import std.path;
