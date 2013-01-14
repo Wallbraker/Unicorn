@@ -20,7 +20,7 @@ import example.packetmaker : buildPacketMaker;
 int main(string[] args)
 {
 	if (args.length > 1) {
-		switch(toLower(args[2])) {
+		switch(toLower(args[1])) {
 		case "--license":
 			foreach(license; licenseArray)
 				writefln("%s", license);
