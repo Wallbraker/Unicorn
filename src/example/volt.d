@@ -39,7 +39,7 @@ __gshared string machine = getMachine();
 
 __gshared string platform = getPlatform();
 
-__gshared string target = "compiler";
+__gshared string target = "volt";
 
 __gshared string[] flagsD = [];
 
