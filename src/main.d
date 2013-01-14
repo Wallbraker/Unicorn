@@ -7,7 +7,7 @@
 module main;
 
 import std.string : indexOf, toLower;
-import std.stdio : writefln;
+import std.stdio : stderr, writefln;
 import std.file : getcwd;
 
 import uni.license;
@@ -42,12 +42,14 @@ int main(string[] args)
 
 	auto pwd = toLower(getcwd());
 
-	if (indexOf(pwd, "charge") >= 0)
+	if (indexOf(pwd, "charge") >= 0) {
 		buildCharge();
-	else if (indexOf(pwd, "volt") >= 0)
+	} else if (indexOf(pwd, "volt") >= 0) {
 		buildVolt();
-	else
-		writefln("Could no figure out what builder to run!");
+	} else {
+		stderr.writefln("Could no figure out what builder to run!");
+		return -1;
+	}
 
 	return 0;
 }
