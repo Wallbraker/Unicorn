@@ -14,7 +14,7 @@ import std.cstream : dout;
 import uni.core.def : getMachine, getPlatform;
 import uni.core.target : Instance, Target, Rule;
 import uni.core.solver : build;
-import uni.util.cmd : getOutput;
+import uni.util.cmd : getOutput, CmdException;
 import uni.util.env : findCmd, getEnv, getEnvSplit, isEnvSet, splitIntoArgs;
 import uni.util.path : baseName, makeToOutput, listDir;
 
@@ -61,7 +61,7 @@ __gshared bool debugPrint = false;
 /**
  * Build the volt compiler.
  */
-void buildVolt()
+int buildVolt()
 {
 	/*
 	 * First find the compilers.
@@ -124,7 +124,7 @@ void buildVolt()
 
 	default:
 		dout.writefln("Unknown platform! %s", platform);
-		return;
+		return 2;
 	}
 
 
@@ -174,7 +174,16 @@ void buildVolt()
 	 * And build.
 	 */
 
-	build(exe);
+	try {
+		build(exe);
+	} catch (CmdException ce) {
+		dout.writefln("%s", ce.msg);
+		return 1;
+	} catch (Exception e) {
+		dout.writefln("%s", e);
+		return 2;
+	}
+	return 0;
 }
 
 /**

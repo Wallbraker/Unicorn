@@ -45,10 +45,10 @@ int main(string[] args)
 	if (indexOf(pwd, "charge") >= 0) {
 		buildCharge();
 	} else if (indexOf(pwd, "volt") >= 0) {
-		buildVolt();
+		return buildVolt();
 	} else {
 		stderr.writefln("Could no figure out what builder to run!");
-		return -1;
+		return 1;
 	}
 
 	return 0;
