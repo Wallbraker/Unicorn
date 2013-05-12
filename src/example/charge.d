@@ -71,7 +71,7 @@ void buildCharge()
 	 * First find the compilers.
 	 */
 
-	cmdCC = findCmd([cmdCC], "CC", cmdCC);
+	cmdCC = findCmd([cmdCC, "dmc"], "CC", cmdCC);
 	cmdDMD = dlang.findDmd(dlang.DVersion.D1);
 
 
