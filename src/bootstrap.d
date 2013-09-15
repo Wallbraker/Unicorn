@@ -124,7 +124,7 @@ int main(char[][] args)
 
 	string debugFlag = optionDmd ? "-gc" : "-g";
 	flagsD ~= getEnvSplit("DFLAGS", [debugFlag, "-debug"]);
-	flagsLD ~= getEnvSplit("LDFLAGS", ["-quiet", debugFlag, "-debug"]);
+	flagsLD ~= getEnvSplit("LDFLAGS", [debugFlag, "-debug"]);
 
 
 	/*

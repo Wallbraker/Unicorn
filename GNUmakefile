@@ -46,7 +46,7 @@ LDFLAGS ?= $(DEBUG_DFLAGS)
 
 TARGET = unicorn-bootstrap
 DCOMP_FLAGS = -c -w -Isrc $(DFLAGS)
-LINK_FLAGS = -quiet -L-ldl $(LDFLAGS)
+LINK_FLAGS = -L-ldl $(LDFLAGS)
 
 
 ifeq ($(UNAME),Darwin)
@@ -59,7 +59,7 @@ else
   TARGET = unicorn-boostrap.exe
 
   # Change the link flags
-  LINK_FLAGS = -quiet $(LDFLAGS)
+  LINK_FLAGS = $(LDFLAGS)
 endif
 endif
 
