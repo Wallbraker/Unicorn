@@ -75,7 +75,7 @@ public:
 	Rule rule;
 
 	/// Will be built, but if no rule and missing will be ignored.
-	Target deps[];
+	Target[] deps;
 
 	/// Cached last modified time.
 	SysTime mod;
@@ -123,8 +123,8 @@ public:
 	string print;
 
 	/// Files needed directly to run this rule.
-	Target input[];
+	Target[] input;
 
 	/// When the rule is running these targets will be locked.
-	Target outputs[];
+	Target[] outputs;
 }
