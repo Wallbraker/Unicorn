@@ -195,10 +195,11 @@ string[] getLlvmFlagsLD()
 		"--ldflags",
 		"--libs",
 		"core",
-		"analysis",
-		"scalaropts",
 		"bitwriter",
-		"ipo",
+		"bitreader",
+		"linker",
+		"target",
+		"x86codegen"
 	];
 
 	auto output = getOutput(cmdLlvmConfig, args);
