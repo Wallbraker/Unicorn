@@ -30,8 +30,9 @@ void listDir(string dir, string pattern,
 
 		auto t = i.file(de.name);
 		t.mod = de.timeLastModified;
-		if (t.status < Target.CHECKED)
+		if (t.status < Target.CHECKED) {
 			t.status = Target.CHECKED;
+		}
 		dg(t);
 	}
 }
@@ -45,11 +46,13 @@ void mkdirP(string name)
 		return;
 
 	auto str = dirName(name);
-	if (str != ".")
+	if (str != ".") {
 		mkdirP(str);
+	}
 
-	if (!exists(name))
+	if (!exists(name)) {
 		mkdir(name);
+	}
 }
 
 /**
@@ -78,10 +81,11 @@ string makeToOutput(string name,
 
 	add(newSufix);
 
-	version(Windows)
+	version(Windows) {
 		ret = replace(data[0 .. pos], "/", "\\");
-	else
+	} else {
 		ret = data[0 .. pos].dup;
+	}
 
 	// Make sure we don't return a pointer to the stack.
 	return ret.ptr == data.ptr ? ret.idup : cast(string)ret;

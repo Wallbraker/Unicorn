@@ -49,19 +49,22 @@ int system(string cmd, string[] args)
 		bool bRet;
 		auto hProcess = _createProcess(cmd, args);
 
-		scope(exit)
+		scope(exit) {
 			CloseHandle(hProcess);
+		}
 
 		uRet = WaitForSingleObject(hProcess, -1);
-		if (uRet)
+		if (uRet) {
 			throw new CmdException(cmd, args,
 				"failed to wait for program");
+		}
 
 		int result = -1;
 		bRet = GetExitCodeProcess(hProcess, cast(uint*)&result);
-		if (!bRet)
+		if (!bRet) {
 			throw new CmdException(cmd, args,
 				"abnormal application termination");
+		}
 
 		return result;
 
@@ -71,21 +74,23 @@ int system(string cmd, string[] args)
 		pid_t pid = fork();
 
 		// Child, does not return.
-		if (!pid)
+		if (!pid) {
 			_execvp(cmd, args);
+		}
 
 		while(1) {
 			int status;
 			pid_t wpid = waitpid(pid, &status, 0);
 
-			if (exited(status))
+			if (exited(status)) {
 				return exitstatus(status);
-			else if (signaled(status))
+			} else if (signaled(status)) {
 				return -termsig(status);
-			else if (stopped(status))
+			} else if (stopped(status)) {
 				continue;
-			else
+			} else {
 				break;
+			}
 		}
 
 		// This is an error path.
@@ -104,8 +109,9 @@ void runCommand(string cmd, string[] args)
 {
 	int result = system(cmd, args);
 
-	if (result != 0)
+	if (result != 0) {
 		throw new CmdException(cmd, result);
+	}
 }
 
 /**
@@ -134,9 +140,11 @@ string getOutput(string cmd, string[] args)
 		saAttr.lpSecurityDescriptor = null;
 
 		bRet = cast(bool)CreatePipe(&hIn, &hOut, &saAttr, 0);
-		if (!bRet)
+		if (!bRet) {
 			throw new CmdException(
 				cmd, args, "Could not create pipe");
+		}
+
 		scope(exit) {
 			CloseHandle(hIn);
 			CloseHandle(hOut);
@@ -145,9 +153,10 @@ string getOutput(string cmd, string[] args)
 
 		// Ensure the read handle to the pipe for STDOUT is not inherited.
 		bRet = cast(bool)SetHandleInformation(hIn, HANDLE_FLAG_INHERIT, 0);
-		if (!bRet)
+		if (!bRet) {
 			throw new CmdException(
 				cmd, args, "Failed to set hIn info");
+		}
 
 
 		auto cmdPtr = writeArgsToStack(stack, cmd, args);
@@ -167,20 +176,23 @@ string getOutput(string cmd, string[] args)
 			&si,
 			&pi);
 
-		if (!bRet)
+		if (!bRet) {
 			throw new CmdException(cmd, args, "failed to start program");
+		}
 
 		// Not interested in this.
 		CloseHandle(pi.hThread);
-		scope(exit)
+		scope(exit) {
 			CloseHandle(pi.hProcess);
+		}
 
 
 		// Wait for the process to close.
 		uRet = WaitForSingleObject(pi.hProcess, -1);
-		if (uRet)
+		if (uRet) {
 			throw new CmdException(
 				cmd, args, "Failed to wait for program");
+		}
 
 
 		// Read data from file.
@@ -189,22 +201,25 @@ string getOutput(string cmd, string[] args)
 		size = cast(size_t)uRet;
 
 		// Check result of read.
-		if (!bRet || size >= stack.length)
+		if (!bRet || size >= stack.length) {
 			throw new CmdException(
 				cmd, args, "Failed to read from output file");
+		}
 
 	} else version(Posix) {
 
 		auto cmdPtr = writeArgsToStack(stack, cmd, args);
 		auto f = popen(cmdPtr, "r");
-		if (f is null)
+		if (f is null) {
 			throw new CmdException(
 				cmd, args, "Failed to launch the program");
+		}
 
 		size = cast(size_t)fread(stack.ptr, 1, stack.length, f);
-		if (size == stack.length)
+		if (size == stack.length) {
 			throw new CmdException(
 				cmd, args, "To much data to read");
+		}
 
 	} else {
 		static assert(false);
@@ -224,8 +239,9 @@ char* writeArgsToStack(char[] stack, string cmd, string[] args)
 	size_t pos;
 
 	void add(string c) {
-		if (pos + c.length > stack.length)
+		if (pos + c.length > stack.length) {
 			throw new CmdException(cmd, args, "Command line to long");
+		}
 		stack[pos .. pos + c.length] = c;
 		pos += c.length;
 	}
@@ -338,8 +354,9 @@ public:
 			pid_t pid = fork();
 
 			// Child, does not return.
-			if (!pid)
+			if (!pid) {
 				_execvp(cmd, args);
+			}
 
 			waiting[pid] = newCmd(cmd, args, dg);
 
@@ -371,21 +388,24 @@ public:
 			auto hProcess = cast(HANDLE)keys[uRet];
 			keys = null;
 
-			scope(exit)
+			scope(exit) {
 				CloseHandle(hProcess);
+			}
 
 			auto c = waiting[hProcess];
 			waiting.remove(hProcess);
 
 			// Need to use the done field
-			scope(failure)
+			scope(failure) {
 				c.reset();
+			}
 
 			int result = -1;
 			bRet = GetExitCodeProcess(hProcess, cast(uint*)&result);
-			if (!bRet)
+			if (!bRet) {
 				throw new CmdException(c.cmd, c.args,
 					"abnormal application termination");
+			}
 
 		} else version(Posix) {
 
@@ -399,17 +419,19 @@ public:
 			while(true) {
 				pid = waitpid(-1, &status, 0);
 
-				if (exited(status))
+				if (exited(status)) {
 					result = exitstatus(status);
-				else if (signaled(status))
+				} else if (signaled(status)) {
 					result = -termsig(status);
-				else if (stopped(status))
+				} else if (stopped(status)) {
 					continue;
-				else
+				} else {
 					result = errno();
+				}
 
-				if ((pid in waiting) is null)
+				if ((pid in waiting) is null) {
 					continue;
+				}
 
 				break;
 			}
@@ -418,30 +440,34 @@ public:
 			waiting.remove(pid);
 
 			// Windows version needs this a bit earlier.
-			scope(failure)
+			scope(failure) {
 				c.reset();
+			}
 
 		} else {
 			static assert(false);
 		}
 
 		// Common code.
-		if (result != 0)
+		if (result != 0) {
 			throw new CmdException(c.cmd, c.args, result);
+		}
 
 		// But also reset it before calling the dg
 		auto dg = c.done;
 
 		c.reset();
 
-		if (dg !is null)
+		if (dg !is null) {
 			dg();
+		}
 	}
 
 	void waitAll()
 	{
-		while(waiting.length > 0)
+		while(waiting.length > 0) {
 			waitOne();
+		}
 	}
 
 private:
@@ -453,10 +479,11 @@ private:
 				return c;
 			}
 		}
-		debug
+		debug {
 			assert(false);
-		else
+		} else {
 			throw new Exception("assert");
+		}
 	}
 }
 
@@ -472,8 +499,9 @@ class CmdException : Exception
 
 	this(string cmd, string[] args, string reason)
 	{
-		foreach(a; args)
+		foreach(a; args) {
 			cmd ~= " " ~ a;
+		}
 		this(cmd, reason);
 	}
 
@@ -486,8 +514,9 @@ class CmdException : Exception
 
 	this(string cmd, string[] args, int result)
 	{
-		foreach(a; args)
+		foreach(a; args) {
 			cmd ~= " " ~ a;
+		}
 		this(cmd, result);
 	}
 }
@@ -527,8 +556,9 @@ version(Windows) {
 			&si,
 			&pi);
 
-		if (!bRet)
+		if (!bRet) {
 			throw new CmdException(cmd, args, "failed to start program");
+		}
 
 		// Not interested in this.
 		CloseHandle(pi.hThread);
@@ -614,8 +644,9 @@ version(Windows) {
 		}
 
 		argv[i++] = add(cmd);
-		foreach(a; args)
+		foreach(a; args) {
 			argv[i++] = add(a);
+		}
 		argv[i] = null;
 
 		execvp(argv[0], &argv[0]);

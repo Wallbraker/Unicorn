@@ -24,8 +24,9 @@ public:
 	Target file(string name)
 	{
 		auto test = name in targets;
-		if (test !is null)
+		if (test !is null) {
 			return *test;
+		}
 
 		auto ret = new Target();
 		ret.name = name;
@@ -85,8 +86,9 @@ public:
 	void updateTime()
 	{
 		// Somebody might have set a higher status.
-		if (status <= FRESH)
+		if (status <= FRESH) {
 			status = CHECKED;
+		}
 
 		try {
 			SysTime a;

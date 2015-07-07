@@ -88,8 +88,9 @@ void buildCharge()
 		objectEnding = ".obj";
 	}
 	auto str = toLower(baseName(cmdDMD));
-	if (str == "dmd")
+	if (str == "dmd") {
 		optionDmd = true;
+	}
 
 	/*
 	 * Setup flags initial flags first.
@@ -137,15 +138,17 @@ void buildCharge()
 	/*
 	 * Optional components.
 	 */
-	if (isEnvSet("USE_SDL"))
+	if (isEnvSet("USE_SDL")) {
 		flagsLD ~= ["-L-lSDL"];
-	else
+	} else {
 		flagsD ~= ["-version=DynamicSDL"];
+	}
 
-	if (isEnvSet("USE_ODE"))
+	if (isEnvSet("USE_ODE")) {
 		flagsLD ~= ["-L-L.", "-L-lode", "-L-lstdc++"];
-	else
+	} else {
 		flagsD ~= ["-version=DynamicODE"];
+	}
 
 
 	/*
@@ -267,7 +270,6 @@ Target createExeRule(Instance ins, Target[] targets)
 	Target ret = ins.fileNoRule(target);
 	Rule rule = new Rule();
 
-
 	ret.deps = targets.dup;
 	ret.rule = rule;
 
@@ -275,8 +277,9 @@ Target createExeRule(Instance ins, Target[] targets)
 	args.length = flagsLD.length + targets.length + 1;
 	args[0 .. flagsLD.length] = flagsLD;
 	args[flagsLD.length] = "-of" ~ target;
-	for (int i, k = cast(int)flagsLD.length + 1; i < targets.length; i++, k++)
+	for (int i, k = cast(int)flagsLD.length + 1; i < targets.length; i++, k++) {
 		args[k] = targets[i].name;
+	}
 
 	rule.outputs = [ret];
 	rule.cmd = cmdDMD;

@@ -23,8 +23,9 @@ void build(Target t)
 	auto g = new CmdGroup();
 
 	auto built = build(t, g);
-	if (built)
+	if (built) {
 		g.waitAll();
+	}
 }
 
 /**
@@ -35,21 +36,25 @@ void build(Target t)
 private bool build(Target t, CmdGroup g)
 {
 	// This is needed for Windows.
-	if (t.status < Target.CHECKED)
+	if (t.status < Target.CHECKED) {
 		t.updateTime();
+	}
 
 	// Our work is allready done.
-	if (t.status >= Target.BUILDING)
+	if (t.status >= Target.BUILDING) {
 		return t.status == Target.BUILDING ? true : false;
+	}
 
 	// Build all the dependancies.
 	bool built;
-	foreach(child; t.deps)
+	foreach(child; t.deps) {
 		built = build(child, g) || built;
+	}
 
 	// XXX Figure out a better algorithm then this.
-	if (built)
+	if (built) {
 		g.waitAll();
+	}
 
 	bool shouldBuild;
 	foreach(d; t.deps) {
@@ -63,8 +68,9 @@ private bool build(Target t, CmdGroup g)
 	}
 
 	// All deps are older then this target, nothing to do.
-	if (!shouldBuild)
+	if (!shouldBuild) {
 		return false;
+	}
 
 	/*
 	 * Skip the file if we can't build it, in make this
@@ -72,8 +78,9 @@ private bool build(Target t, CmdGroup g)
 	 * file sometimes. If it actually is a error let the
 	 * compiler warn about it.
 	 */
-	if (t.rule is null)
+	if (t.rule is null) {
 		return false;
+	}
 
 	// Make sure the directory exist.
 	mkdirP(dirName(t.name));

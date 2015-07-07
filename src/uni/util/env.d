@@ -47,8 +47,9 @@ string getEnv(string name)
 	auto namez = toStringz(name);
 	auto t = getenv(namez);
 
-	if (t is null)
+	if (t is null) {
 		return null;
+	}
 	return to!string(t);
 }
 
@@ -96,8 +97,9 @@ string findCmd(string[] names, string envName, string def)
 	// First check if 
 	if (envName !is null) {
 		ret = getEnv(envName);
-		if (ret !is null)
+		if (ret !is null) {
 			return ret;
+		}
 	}
 
 	version(Windows) {
@@ -105,14 +107,16 @@ string findCmd(string[] names, string envName, string def)
 
 		foreach(n; names) {
 			// Needs to add .exe at the end.
-			if (!endsWith(n, ".exe"))
+			if (!endsWith(n, ".exe")) {
 				n ~= ".exe";
+			}
 
 			foreach(l; lines) {
 				auto tmp = l ~ "\\" ~ n;
 
-				if (exists(tmp))
+				if (exists(tmp)) {
 					return tmp;
+				}
 			}
 		}
 	} else { /* Linux/MacOSX */
@@ -120,15 +124,17 @@ string findCmd(string[] names, string envName, string def)
 			// About as standard location as possible.
 			auto r = getOutput("/usr/bin/which", [n]);
 
-			if (r is null || r[0] == 0)
+			if (r is null || r[0] == 0) {
 				continue;
+			}
 
 			return splitLines(r)[0].idup;
 		}
 	}
 
-	if (ret is null)
+	if (ret is null) {
 		ret = def;
+	}
 
 	return ret;
 }
@@ -169,8 +175,9 @@ string[] splitIntoArgs(string str)
 	}
 
 	void done() {
-		if (pos == 0)
+		if (pos == 0) {
 			return;
+		}
 		ret ~= tmp[0 .. pos].idup;
 		pos = 0;
 	}
@@ -203,10 +210,11 @@ string[] splitIntoArgs(string str)
 			break;
 		case State.ESCAPE:
 			add(c);
-			if (stateOld == State.IGNORE)
+			if (stateOld == State.IGNORE) {
 				state = stateOld;
-			else
+			} else {
 				state = State.NORMAL;
+			}
 			break;
 		case State.IGNORE:
 			if (c == '\\') {
@@ -223,8 +231,9 @@ string[] splitIntoArgs(string str)
 	}
 
 	if (state == State.NORMAL ||
-	    state == State.IGNORE)
+	    state == State.IGNORE) {
 		done();
+	}
 
 	return ret;
 }

@@ -13,14 +13,15 @@ module uni.core.def;
  */
 string getMachine()
 {
-	version(X86)
+	version(X86) {
 		return "x86";
-	else version(X86_64)
+	} else version(X86_64) {
 		return "x86_64";
-	else version(PPC)
+	} else version(PPC) {
 		return "ppc";
-	else
+	} else {
 		static assert(false);
+	}
 }
 
 /**
@@ -33,12 +34,13 @@ string getMachine()
  */
 string getPlatform()
 {
-	version(Darwin)
+	version(Darwin) {
 		return "mac";
-	else version(linux)
+	} else version(linux) {
 		return "linux";
-	else version(Windows)
+	} else version(Windows) {
 		return "windows";
-	else
+	} else {
 		static assert(false);
+	}
 }
