@@ -170,13 +170,20 @@ int buildVolt()
 
 	auto exe = createExeRule(i, targets);
 
+	auto rts = createRTs(i, exe);
+
+	// First rt is the host one.
+	auto test = createTest(i, exe, rts[0]);
+
+	auto mega = i.fileNoRule("__all");
+	mega.deps = rts ~ test;
 
 	/*
 	 * And build.
 	 */
 
 	try {
-		build(exe);
+		build(mega);
 	} catch (CmdException ce) {
 		dout.writefln("%s", ce.msg);
 		return 1;
@@ -220,6 +227,74 @@ string[] getLlvmFlagsLD()
  * Building rules.
  *
  */
+
+Target createTest(Instance ins, Target exe, Target rtHost)
+{
+	auto name = "a.out.exe";
+	auto src = ins.fileNoRule("test/simple.volt");
+	auto deps = [exe, src, rtHost];
+	auto print = "  VOLT   " ~ name;
+	auto cmd = exe.name;
+	auto args = [
+		"--no-stdlib",
+		"-I", "rt/src",
+		rtHost.name,
+		"-o", name,
+		"-l", "gc",
+		src.name];
+
+	return createSimpleRule(ins, name, deps, cmd, args, print);
+}
+	
+Target[] createRTs(Instance ins, Target exe)
+{
+	Target[] rtDeps = [exe];
+	string[] rtSrcs;
+	string[] rtArgs = [
+		"--no-stdlib",
+		"--emit-bitcode",
+		"-I",
+		"rt/src",
+		"-o"
+	];
+
+	void func(Target t) {
+		rtSrcs ~= t.name;
+		rtDeps ~= t;
+	}
+
+	listDir("rt/src", "*.volt", ins, &func);
+
+	Target createHost() {
+		auto name = "rt/libvrt-host.bc";
+		auto deps = rtDeps;
+		auto cmd = exe.name;
+		auto print = "  VOLT   " ~ name;
+		auto args = rtArgs ~ name ~ rtSrcs;
+
+		return createSimpleRule(ins, name, deps, cmd, args, print);
+	}
+
+	Target createRT(string arch, string platform) {
+		auto name = "rt/libvrt-" ~ arch ~ "-" ~ platform ~ ".bc";
+		auto deps = rtDeps;
+		auto cmd = exe.name;
+		auto print = "  VOLT   " ~ name;
+		auto args = ["--arch", arch, "--platform", platform] ~
+			rtArgs ~ name ~ rtSrcs;
+
+		return createSimpleRule(ins, name, deps, cmd, args, print);
+	}
+
+	return [createHost(),
+		createRT("le32", "emscripten"),
+		createRT("x86", "mingw"),
+		createRT("x86", "linux"),
+		createRT("x86_64", "linux"),
+		createRT("x86", "osx"),
+		createRT("x86_64", "osx")
+		];
+}
 
 
 Target[] createDRules(Instance i)
@@ -297,6 +372,26 @@ Target createSimpleRule(
 	rule.print = print;
 	rule.input = [src];
 	rule.outputs = dep !is null ? [dst, dep] : [dst];
+
+	return dst;
+}
+
+Target createSimpleRule(
+	Instance i, string dstName, Target[] deps,
+	string cmd, string[] args, string print)
+{
+	Target dst;
+	auto rule = new Rule();
+
+	dst = i.fileNoRule(dstName);
+	dst.deps = deps.dup;
+	dst.rule = rule;
+
+	rule.cmd = cmd;
+	rule.args = args;
+	rule.print = print;
+	rule.input = deps.dup;
+	rule.outputs = [dst];
 
 	return dst;
 }
