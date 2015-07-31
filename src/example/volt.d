@@ -230,8 +230,8 @@ string[] getLlvmFlagsLD()
 
 Target createTest(Instance ins, Target exe, Target rtHost)
 {
-	auto name = "a.out.exe";
-	auto src = ins.fileNoRule("test/simple.volt");
+	auto name = "a.out";
+	auto src = ins.fileNoRule("test/test.volt");
 	auto deps = [exe, src, rtHost];
 	auto print = "  VOLT   " ~ name;
 	auto cmd = exe.name;
