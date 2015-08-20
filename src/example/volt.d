@@ -200,6 +200,7 @@ int buildVolt()
 string[] getLlvmFlagsLD()
 {
 	string[] args = [
+		"--system-libs",
 		"--ldflags",
 		"--libs",
 		"core",
