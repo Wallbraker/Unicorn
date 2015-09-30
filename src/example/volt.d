@@ -253,9 +253,16 @@ Target[] createRTs(Instance ins, Target exe)
 	string[] rtSrcs;
 	string[] rtArgs = [
 		"--no-stdlib",
-		"--emit-bitcode",
 		"-I",
 		"rt/src",
+		"--emit-bitcode",
+		"-o"
+	];
+	string[] rtBinArgs = [
+		"--no-stdlib",
+		"-I",
+		"rt/src",
+		"-c",
 		"-o"
 	];
 
@@ -287,13 +294,36 @@ Target[] createRTs(Instance ins, Target exe)
 		return createSimpleRule(ins, name, deps, cmd, args, print);
 	}
 
+	Target createRTBin(string arch, string platform) {
+		auto nameBase = "rt/libvrt-" ~ arch ~ "-" ~ platform;
+		auto nameBc = nameBase ~ ".bc";
+		auto name = nameBase ~ ".o";
+		auto print = "  VOLT   " ~ name;
+		auto cmd = exe.name;
+		auto rtbc = ins.file(nameBc);
+		auto args = ["--arch", arch, "--platform", platform] ~
+			rtBinArgs ~ name ~ nameBc;
+		auto dep = [rtbc, exe];
+
+		return createSimpleRule(ins, name, dep, cmd, args, print);
+	}
+
 	return [createHost(),
 		createRT("le32", "emscripten"),
+		createRT("x86_64", "msvc"),
 		createRT("x86", "mingw"),
+		createRT("x86_64", "mingw"),
 		createRT("x86", "linux"),
 		createRT("x86_64", "linux"),
 		createRT("x86", "osx"),
-		createRT("x86_64", "osx")
+		createRT("x86_64", "osx"),
+		createRTBin("x86_64", "msvc"),
+		createRTBin("x86", "mingw"),
+		createRTBin("x86_64", "mingw"),
+		createRTBin("x86", "linux"),
+		createRTBin("x86_64", "linux"),
+		createRTBin("x86", "osx"),
+		createRTBin("x86_64", "osx")
 		];
 }
 
