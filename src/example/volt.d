@@ -8,7 +8,7 @@
  */
 module volt;
 
-import std.string : toLower, format;
+import std.string : toLower, format, endsWith;
 import std.cstream : dout;
 
 import uni.core.def : getMachine, getPlatform;
@@ -41,6 +41,8 @@ __gshared string platform = getPlatform();
 
 __gshared string target = "volt";
 
+__gshared string sanity = "a.out";
+
 __gshared string[] flagsD = [];
 
 __gshared string[] flagsLD = [];
@@ -56,6 +58,32 @@ __gshared string outputDir;
 __gshared bool optionDmd = false;
 
 __gshared bool debugPrint = false;
+
+
+class Env
+{
+	Instance ins;
+
+	string target;
+
+	string rtDir;
+	string wattDir;
+	string teslaDir;
+	string voltaDir;
+	string chargeDir;
+	string sanityDir;
+
+	Target exe;
+	Target rtHost;
+	Target wattHost;
+
+	Target[] rtDeps;
+}
+
+string getFileInVolta(Env env, string dir)
+{
+	return env.voltaDir is null ? dir : env.voltaDir ~ "/" ~ dir;
+}
 
 
 /**
@@ -92,7 +120,7 @@ int buildVolt()
 	 * Setup flags initial flags first.
 	 */
 
-	flagsD = ["-c", "-w", "-I" ~ sourceDir];
+	flagsD = ["-c", "-w"];
 	flagsLD = [];
 
 
@@ -121,6 +149,7 @@ int buildVolt()
 
 	case "windows":
 		target ~= ".exe";
+		sanity ~= ".exe";
 		break;
 
 	default:
@@ -162,21 +191,39 @@ int buildVolt()
 	 * Create all the rules.
 	 */
 
-	auto i = new Instance();
+	auto env = new Env();
+	env.ins = new Instance();
+	env.voltaDir = getEnv("VOLTA_DIR", null);
+
+	env.rtDir = env.getFileInVolta("rt");
+	env.wattDir = getEnv("WATT_DIR", env.wattDir);
+	env.teslaDir = getEnv("TESLA_DIR", env.teslaDir);
+	env.chargeDir = getEnv("CHARGE_DIR", env.chargeDir);
+	env.sanityDir = env.getFileInVolta("test");
+	flagsD ~= ("-I" ~ env.getFileInVolta(sourceDir));
 
 	Target[] targets;
 
-	targets ~= createDRules(i);
+	env.exe = createExeRule(env);
 
-	auto exe = createExeRule(i, targets);
+	auto rts = createRTs(env);
 
-	auto rts = createRTs(i, exe);
+	auto test = createSanity(env);
 
-	// First rt is the host one.
-	auto test = createTest(i, exe, rts[0]);
-
-	auto mega = i.fileNoRule("__all");
+	auto mega = env.ins.fileNoRule("__all");
 	mega.deps = rts ~ test;
+
+	if (env.wattDir !is null) {
+		mega.deps ~= createWatts(env);
+	}
+
+	if (env.teslaDir !is null) {
+		mega.deps ~= createBin(env, env.teslaDir, "runner");
+	}
+
+	if (env.chargeDir !is null) {
+		mega.deps ~= createBin(env, env.chargeDir, "charge", "-D", "DynamicSDL");
+	}
 
 	/*
 	 * And build.
@@ -229,110 +276,161 @@ string[] getLlvmFlagsLD()
  *
  */
 
-Target createTest(Instance ins, Target exe, Target rtHost)
+Target createSanity(Env env)
 {
-	auto name = "a.out";
-	auto src = ins.fileNoRule("test/test.volt");
-	auto deps = [exe, src, rtHost];
+	auto name = env.getFileInVolta(sanity);
+	auto src = env.ins.fileNoRule(env.sanityDir ~ "/test.volt");
+	auto deps = [env.exe, src, env.rtHost];
 	auto print = "  VOLT   " ~ name;
-	auto cmd = exe.name;
+	auto cmd = env.exe.name;
 	auto args = [
 		"--no-stdlib",
-		"-I", "rt/src",
-		rtHost.name,
+		"-I", env.rtDir ~ "/src",
+		env.rtHost.name,
 		"-o", name,
 		"-l", "gc",
 		src.name];
 
-	return createSimpleRule(ins, name, deps, cmd, args, print);
+	return createSimpleRule(env.ins, name, deps, cmd, args, print);
 }
-	
-Target[] createRTs(Instance ins, Target exe)
+
+Target createBin(Env env, string dir, string exeName, string[] extraArgs...)
 {
-	Target[] rtDeps = [exe];
-	string[] rtSrcs;
-	string[] rtArgs = [
+	auto name = dir ~ "/" ~ exeName;
+	auto deps = [env.exe, env.rtHost, env.wattHost] ~ env.rtDeps;
+	auto print = "  VOLT   " ~ name;
+	auto cmd = env.exe.name;
+	auto args = [
 		"--no-stdlib",
-		"-I",
-		"rt/src",
-		"--emit-bitcode",
-		"-o"
-	];
-	string[] rtBinArgs = [
-		"--no-stdlib",
-		"-I",
-		"rt/src",
-		"-c",
-		"-o"
-	];
+		"-I", env.rtDir ~ "/src",
+		"-I", env.wattDir ~ "/src",
+		env.rtHost.name,
+		env.wattHost.name,
+		"-o", name,
+		"-l", "gc"] ~ extraArgs;
 
 	void func(Target t) {
-		rtSrcs ~= t.name;
-		rtDeps ~= t;
+		deps ~= t;
+		args ~= t.name;
 	}
 
-	listDir("rt/src", "*.volt", ins, &func);
+	listDir(dir ~ "/src", "*.volt", env.ins, &func);
 
-	Target createHost() {
-		auto name = "rt/libvrt-host.bc";
-		auto deps = rtDeps;
-		auto cmd = exe.name;
-		auto print = "  VOLT   " ~ name;
-		auto args = rtArgs ~ name ~ rtSrcs;
-
-		return createSimpleRule(ins, name, deps, cmd, args, print);
-	}
-
-	Target createRT(string arch, string platform) {
-		auto name = "rt/libvrt-" ~ arch ~ "-" ~ platform ~ ".bc";
-		auto deps = rtDeps;
-		auto cmd = exe.name;
-		auto print = "  VOLT   " ~ name;
-		auto args = ["--arch", arch, "--platform", platform] ~
-			rtArgs ~ name ~ rtSrcs;
-
-		return createSimpleRule(ins, name, deps, cmd, args, print);
-	}
-
-	Target createRTBin(string arch, string platform) {
-		auto nameBase = "rt/libvrt-" ~ arch ~ "-" ~ platform;
-		auto nameBc = nameBase ~ ".bc";
-		auto name = nameBase ~ ".o";
-		auto print = "  VOLT   " ~ name;
-		auto cmd = exe.name;
-		auto rtbc = ins.file(nameBc);
-		auto args = ["--arch", arch, "--platform", platform] ~
-			rtBinArgs ~ name ~ nameBc;
-		auto dep = [rtbc, exe];
-
-		return createSimpleRule(ins, name, dep, cmd, args, print);
-	}
-
-	return [createHost(),
-		createRT("le32", "emscripten"),
-		createRT("x86_64", "msvc"),
-		createRT("x86", "mingw"),
-		createRT("x86_64", "mingw"),
-		createRT("x86", "linux"),
-		createRT("x86_64", "linux"),
-		createRT("x86", "osx"),
-		createRT("x86_64", "osx"),
-		createRTBin("x86_64", "msvc"),
-		createRTBin("x86", "mingw"),
-		createRTBin("x86_64", "mingw"),
-		createRTBin("x86", "linux"),
-		createRTBin("x86_64", "linux"),
-		createRTBin("x86", "osx"),
-		createRTBin("x86_64", "osx")
-		];
+	return createSimpleRule(env.ins, name, deps, cmd, args, print);
 }
 
-
-Target[] createDRules(Instance i)
+Target[] createRTs(Env env)
 {
+	string rtSrcDir = env.rtDir ~ "/src";
+	string[] flags = [
+		"--no-stdlib",
+		"-I", rtSrcDir
+	];
+	string[] srcs;
+	Target[] deps;
+	void func(Target t) {
+		deps ~= t;
+
+		if (t.name.endsWith("object.volt") ||
+		    t.name.endsWith("defaultsymbols.volt")) {
+			env.rtDeps ~= t;
+		}
+	}
+
+	listDir(rtSrcDir, "*.volt", env.ins, &func);
+
+	auto ret = createRules(env, flags, deps, env.rtDir ~ "/libvrt");
+	env.rtHost = ret[0];
+	return ret;
+}
+
+Target[] createWatts(Env env)
+{
+	string[] flags = [
+		"--no-stdlib",
+		"-I", env.rtDir ~ "/src"
+	];
+	string[] srcs;
+	Target[] deps;
+	void func(Target t) {
+		deps ~= t;
+	}
+
+	listDir(env.wattDir ~ "/src", "*.volt", env.ins, &func);
+
+	auto ret = createRules(env, flags, deps, env.wattDir ~ "/bin/libwatt");
+	env.wattHost = ret[0];
+	return ret;
+}
+
+Target[] createRules(Env env, string[] flags, Target[] srcs, string baseName)
+{
+	auto oArgs = flags ~ ["-c", "-o"];
+	auto bcDeps = [env.exe] ~ srcs ~ env.rtDeps;
+	auto bcArgs = flags ~ ["--emit-bitcode", "-o"];
+	string[] bcSrcs;
+	foreach (d; srcs) {
+		bcSrcs ~= d.name;
+	}
+
+	Target[] bcTargets;
+	Target[] oTargets;
+
+	Target createHost() {
+		auto name = baseName ~ "-host.bc";
+		auto deps = bcDeps;
+		auto cmd = env.exe.name;
+		auto print = "  VOLT   " ~ name;
+		auto args = bcArgs ~ name ~ bcSrcs;
+
+		return createSimpleRule(env.ins, name, deps, cmd, args, print);
+	}
+
+	Target bcCreate(string arch, string platform) {
+		auto name = baseName ~ "-" ~ arch ~ "-" ~ platform ~ ".bc";
+		auto deps = bcDeps ~ env.exe;
+		auto cmd = env.exe.name;
+		auto print = "  VOLT   " ~ name;
+		auto args = ["--arch", arch, "--platform", platform] ~
+			bcArgs ~ name ~ bcSrcs;
+
+		auto ret = createSimpleRule(env.ins, name, deps, cmd, args, print);
+		bcTargets ~= ret;
+		return ret;
+	}
+
+	Target oCreate(string arch, string platform) {
+		auto rtbc = bcCreate(arch, platform);
+		auto name = baseName ~ "-" ~ arch ~ "-" ~ platform ~ ".o";
+		auto cmd = env.exe.name;
+		auto dep = [rtbc, env.exe];
+		auto print = "  VOLT   " ~ name;
+		auto args = ["--arch", arch, "--platform", platform] ~
+			oArgs ~ name ~ rtbc.name;
+
+		auto ret = createSimpleRule(env.ins, name, dep, cmd, args, print);
+		oTargets ~= ret;
+		return ret;
+	}
+
+	bcCreate("le32", "emscripten");
+	oCreate("x86_64", "msvc");
+	oCreate("x86", "mingw");
+	oCreate("x86_64", "mingw");
+	oCreate("x86", "linux");
+	oCreate("x86_64", "linux");
+	oCreate("x86", "osx");
+	oCreate("x86_64", "osx");
+
+	return createHost() ~ bcTargets ~ oTargets;
+}
+
+Target[] createDRules(Env env)
+{
+	string sourceDir = env.getFileInVolta(sourceDir);
+	string outputDir = env.getFileInVolta(outputDir);
 	Target[] ret;
 	string[] args;
-
 	args.length = flagsD.length + 3;
 	args[0 .. flagsD.length] = flagsD[0 .. $];
 
@@ -347,16 +445,20 @@ Target[] createDRules(Instance i)
 		args[$ - 2] = objCmd;
 		args[$ - 3] = depCmd;
 
-		ret ~= createSimpleRule(i, t, obj, dep, cmdDMD, args.dup, print);
+		ret ~= createSimpleRule(env.ins, t, obj, dep, cmdDMD, args.dup, print);
 	}
-	listDir(sourceDir, "*.d", i, &func);
+	listDir(sourceDir, "*.d", env.ins, &func);
 
 	return ret;
 }
 
-Target createExeRule(Instance ins, Target[] targets)
+Target createExeRule(Env env)
 {
-	Target ret = ins.fileNoRule(target);
+	auto targets = createDRules(env);
+
+	string name = env.voltaDir is null ? target : env.voltaDir ~ "/" ~ target;
+
+	Target ret = env.ins.fileNoRule(name);
 	Rule rule = new Rule();
 
 	ret.deps = targets.dup;
@@ -365,7 +467,7 @@ Target createExeRule(Instance ins, Target[] targets)
 	string[] args; uint path;
 	args.length = flagsLD.length + targets.length + 1;
 	args[0 .. flagsLD.length] = flagsLD[0 .. $];
-	args[flagsLD.length] = "-of" ~ target;
+	args[flagsLD.length] = "-of" ~ ret.name;
 	for (int i, k = cast(int)flagsLD.length + 1; i < targets.length; i++, k++) {
 		args[k] = targets[i].name;
 	}
@@ -373,7 +475,7 @@ Target createExeRule(Instance ins, Target[] targets)
 	rule.outputs = [ret];
 	rule.cmd = cmdDMD;
 	rule.args = args;
-	rule.print = "  LD     " ~ target;
+	rule.print = "  LD     " ~ ret.name;
 	rule.input = targets.dup;
 
 	return ret;
