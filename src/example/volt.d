@@ -33,6 +33,8 @@ __gshared string cmdCC = "gcc";
 
 __gshared string cmdDMD = "gdmd";
 
+__gshared string cmdRDMD = "rdmd";
+
 __gshared string cmdLlvmConfig = "llvm-config";
 
 __gshared string machine = getMachine();
@@ -96,6 +98,7 @@ int buildVolt()
 	 */
 
 	cmdCC = findCmd([cmdCC], "CC", cmdCC);
+	cmdRDMD = findCmd([cmdRDMD], "RDMD", cmdRDMD);
 	cmdDMD = dlang.findDmd();
 	cmdLlvmConfig = findCmd([cmdLlvmConfig], "LLVM_CONFIG", cmdLlvmConfig);
 
@@ -120,7 +123,7 @@ int buildVolt()
 	 * Setup flags initial flags first.
 	 */
 
-	flagsD = ["-c", "-w"];
+	flagsD = ["-w"];
 	flagsLD = [];
 
 
@@ -425,27 +428,13 @@ Target[] createRules(Env env, string[] flags, Target[] srcs, string baseName)
 	return createHost() ~ bcTargets ~ oTargets;
 }
 
-Target[] createDRules(Env env)
+Target[] createDDeps(Env env)
 {
 	string sourceDir = env.getFileInVolta(sourceDir);
-	string outputDir = env.getFileInVolta(outputDir);
+
 	Target[] ret;
-	string[] args;
-	args.length = flagsD.length + 3;
-	args[0 .. flagsD.length] = flagsD[0 .. $];
-
 	void func(Target t) {
-		auto obj = makeToOutput(t.name, sourceDir, outputDir, ".d", objectEnding);
-		auto dep = makeToOutput(t.name, sourceDir, outputDir, ".d", ddepEnding);
-		auto print = "  DMD    " ~ t.name;
-		auto objCmd = "-of" ~ obj;
-		auto depCmd = "-deps=" ~ dep;
-
-		args[$ - 1] = t.name;
-		args[$ - 2] = objCmd;
-		args[$ - 3] = depCmd;
-
-		ret ~= createSimpleRule(env.ins, t, obj, dep, cmdDMD, args.dup, print);
+		ret ~= t;
 	}
 	listDir(sourceDir, "*.d", env.ins, &func);
 
@@ -454,9 +443,10 @@ Target[] createDRules(Env env)
 
 Target createExeRule(Env env)
 {
-	auto targets = createDRules(env);
+	auto targets = createDDeps(env);
 
-	string name = env.voltaDir is null ? target : env.voltaDir ~ "/" ~ target;
+	string name = env.getFileInVolta(target);
+	string mainFile = env.getFileInVolta(sourceDir ~ "/main.d");
 
 	Target ret = env.ins.fileNoRule(name);
 	Rule rule = new Rule();
@@ -464,18 +454,18 @@ Target createExeRule(Env env)
 	ret.deps = targets.dup;
 	ret.rule = rule;
 
-	string[] args; uint path;
-	args.length = flagsLD.length + targets.length + 1;
-	args[0 .. flagsLD.length] = flagsLD[0 .. $];
-	args[flagsLD.length] = "-of" ~ ret.name;
-	for (int i, k = cast(int)flagsLD.length + 1; i < targets.length; i++, k++) {
-		args[k] = targets[i].name;
-	}
+	string[] args;
+	args ~= "--build-only";
+	args ~= ("--compiler=" ~ cmdDMD);
+	args ~= flagsD;
+	args ~= flagsLD;
+	args ~= ("-of" ~ name);
+	args ~= mainFile;
 
 	rule.outputs = [ret];
-	rule.cmd = cmdDMD;
+	rule.cmd = cmdRDMD;
 	rule.args = args;
-	rule.print = "  LD     " ~ ret.name;
+	rule.print = "  RDMD   " ~ ret.name;
 	rule.input = targets.dup;
 
 	return ret;
