@@ -342,7 +342,7 @@ Target[] createRTs(Env env)
 
 	listDir(rtSrcDir, "*.volt", env.ins, &func);
 
-	auto ret = createRules(env, flags, deps, env.rtDir ~ "/libvrt");
+	auto ret = createRules(env, flags, deps, env.rtDir ~ "/libvrt", true);
 	env.rtHost = ret[0];
 	return ret;
 }
@@ -361,12 +361,12 @@ Target[] createWatts(Env env)
 
 	listDir(env.wattDir ~ "/src", "*.volt", env.ins, &func);
 
-	auto ret = createRules(env, flags, deps, env.wattDir ~ "/bin/libwatt");
+	auto ret = createRules(env, flags, deps, env.wattDir ~ "/bin/libwatt", false);
 	env.wattHost = ret[0];
 	return ret;
 }
 
-Target[] createRules(Env env, string[] flags, Target[] srcs, string baseName)
+Target[] createRules(Env env, string[] flags, Target[] srcs, string baseName, bool buildMetal)
 {
 	auto oArgs = flags ~ ["-c", "-o"];
 	auto bcDeps = [env.exe] ~ srcs ~ env.rtDeps;
@@ -418,6 +418,10 @@ Target[] createRules(Env env, string[] flags, Target[] srcs, string baseName)
 
 	bcCreate("le32", "emscripten");
 	oCreate("x86_64", "msvc");
+	if (buildMetal) {
+		oCreate("x86", "metal");
+		oCreate("x86_64", "metal");
+	}
 	oCreate("x86", "mingw");
 	oCreate("x86_64", "mingw");
 	oCreate("x86", "linux");
