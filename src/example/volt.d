@@ -310,7 +310,8 @@ Target createBin(Env env, string dir, string exeName, string[] extraArgs...)
 		env.rtHost.name,
 		env.wattHost.name,
 		"-o", name,
-		"-l", "gc"] ~ extraArgs;
+		"-l", "gc",
+		"-l", "dl"] ~ extraArgs;
 
 	void func(Target t) {
 		deps ~= t;
