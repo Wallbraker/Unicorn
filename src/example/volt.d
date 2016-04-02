@@ -71,9 +71,12 @@ class Env
 	string rtDir;
 	string wattDir;
 	string teslaDir;
+	string metalDir;
 	string voltaDir;
+	string diodeDir;
 	string chargeDir;
 	string sanityDir;
+	string batteryDir;
 
 	Target exe;
 	Target rtHost;
@@ -201,7 +204,10 @@ int buildVolt()
 	env.rtDir = env.getFileInVolta("rt");
 	env.wattDir = getEnv("WATT_DIR", env.wattDir);
 	env.teslaDir = getEnv("TESLA_DIR", env.teslaDir);
+	env.diodeDir = getEnv("DIODE_DIR", env.diodeDir);
+	env.metalDir = getEnv("METAL_DIR", env.metalDir);
 	env.chargeDir = getEnv("CHARGE_DIR", env.chargeDir);
+	env.batteryDir = getEnv("BATTERY_DIR", env.batteryDir);
 	env.sanityDir = env.getFileInVolta("test");
 	flagsD ~= ("-I" ~ env.getFileInVolta(sourceDir));
 
@@ -224,9 +230,18 @@ int buildVolt()
 		mega.deps ~= createBin(env, env.teslaDir, "runner");
 	}
 
-	if (env.chargeDir !is null) {
+	if (env.diodeDir !is null) {
+		mega.deps ~= createBin(env, env.diodeDir, "diode");
+	}
+
+	if (env.chargeDir !is null && false) {
 		mega.deps ~= createBin(env, env.chargeDir, "charge", "-D", "DynamicSDL");
 	}
+
+	if (env.batteryDir !is null) {
+		mega.deps ~= createBin(env, env.batteryDir, "battery");
+	}
+
 
 	/*
 	 * And build.
