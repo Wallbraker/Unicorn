@@ -45,6 +45,8 @@ __gshared string target = "volt";
 
 __gshared string sanity = "a.out";
 
+__gshared string[] flagsC = [];
+
 __gshared string[] flagsD = [];
 
 __gshared string[] flagsLD = [];
@@ -234,7 +236,7 @@ int buildVolt()
 		mega.deps ~= createBin(env, env.diodeDir, "diode");
 	}
 
-	if (env.chargeDir !is null && false) {
+	if (env.chargeDir !is null) {
 		mega.deps ~= createBin(env, env.chargeDir, "charge", "-D", "DynamicSDL");
 	}
 
@@ -312,12 +314,50 @@ Target createSanity(Env env)
 	return createSimpleRule(env.ins, name, deps, cmd, args, print);
 }
 
+/*
+Target createCharge(Env env)
+{
+	auto srcDir = env.chargeDir ~ "/src";
+	auto objDir = env.chargeDir ~ "/.obj";
+	auto bin = createBin(env, env.chargeDir, "charge", "-D", "DynamicSDL");
+
+	string[] args;
+
+	args.length = flagsC.length + 4;
+	args[0 .. flagsC.length] = flagsC[0 .. $];
+
+	void func(Target t) {
+		auto obj = makeToOutput(t.name, srcDir, objDir, ".c", objectEnding);
+		auto print = "  CC     " ~ t.name;
+		args[$ - 4] = "-c";
+		args[$ - 3] = "-o";
+		args[$ - 2] = obj;
+		args[$ - 1] = t.name;
+
+		auto c = createSimpleRule(env.ins, t, obj, null, cmdCC, args, print);
+
+		bin.rule.args = bin.rule.args ~ obj;
+		bin.deps ~= c;
+	}
+	listDir(srcDir, "*.c", env.ins, &func);
+
+	return bin;
+}
+*/
+
 Target createBin(Env env, string dir, string exeName, string[] extraArgs...)
 {
+	auto srcDir = dir ~ "/src";
+	auto objDir = dir ~ "/.obj";
 	auto name = dir ~ "/" ~ exeName;
 	auto deps = [env.exe, env.rtHost, env.wattHost] ~ env.rtDeps;
 	auto print = "  VOLT   " ~ name;
 	auto cmd = env.exe.name;
+	auto cArgs = [
+		"-c",
+		"-o",
+		null,
+		null] ~ flagsC;
 	auto args = [
 		"--no-stdlib",
 		"-I", env.rtDir ~ "/src",
@@ -328,12 +368,24 @@ Target createBin(Env env, string dir, string exeName, string[] extraArgs...)
 		"-l", "gc",
 		"-l", "dl"] ~ extraArgs;
 
-	void func(Target t) {
+	void funcVolt(Target t) {
 		deps ~= t;
 		args ~= t.name;
 	}
+	listDir(srcDir, "*.volt", env.ins, &funcVolt);
 
-	listDir(dir ~ "/src", "*.volt", env.ins, &func);
+	void funcC(Target t) {
+		auto obj = makeToOutput(t.name, srcDir, objDir, ".c", objectEnding);
+		auto print = "  CC     " ~ t.name;
+		cArgs[$ - 2] = obj;
+		cArgs[$ - 1] = t.name;
+
+		auto c = createSimpleRule(env.ins, t, obj, null, cmdCC, cArgs, print);
+
+		args ~= obj;
+		deps ~= c;
+	}
+	listDir(srcDir, "*.c", env.ins, &funcC);
 
 	return createSimpleRule(env.ins, name, deps, cmd, args, print);
 }
