@@ -214,6 +214,7 @@ int buildVolt()
 	flagsD ~= ("-I" ~ env.getFileInVolta(sourceDir));
 
 	Target[] targets;
+	Target runner;
 
 	env.exe = createExeRule(env);
 
@@ -229,7 +230,7 @@ int buildVolt()
 	}
 
 	if (env.teslaDir !is null) {
-		mega.deps ~= createBin(env, env.teslaDir, "runner");
+		mega.deps ~= runner = createBin(env, env.teslaDir, "runner");
 	}
 
 	if (env.diodeDir !is null) {
@@ -242,6 +243,10 @@ int buildVolt()
 
 	if (env.batteryDir !is null) {
 		mega.deps ~= createBin(env, env.batteryDir, "battery");
+	}
+
+	if (runner !is null) {
+		mega.deps ~= createTestRun(env, runner, env.exe, "result/volt.xml");
 	}
 
 
@@ -295,6 +300,21 @@ string[] getLlvmFlagsLD()
  * Building rules.
  *
  */
+
+Target createTestRun(Env env, Target r, Target c, string dst)
+{
+	string cmd = r.name;
+	Target[] deps = [r, c];
+	string[] args = [
+		"-c", c.name,
+		"-d", env.teslaDir ~ "/test",
+		"-r", dst,
+	];
+	string print = "  RUN    " ~ dst;
+
+	return createSimpleRule(env.ins, dst, deps, cmd, args, print);
+}
+
 
 Target createSanity(Env env)
 {
