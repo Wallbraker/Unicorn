@@ -80,6 +80,8 @@ class Env
 	string sanityDir;
 	string batteryDir;
 
+	string[] binArgs;
+
 	Target exe;
 	Target rtHost;
 	Target wattHost;
@@ -124,19 +126,21 @@ int buildVolt()
 		optionDmd = true;
 	}
 
+
+	/*
+	 * Create the enviroment.
+	 */
+
+	auto env = new Env();
+	env.ins = new Instance();
+
+
 	/*
 	 * Setup flags initial flags first.
 	 */
 
 	flagsD = ["-w"];
 	flagsLD = [];
-
-
-	/*
-	 * LLVM setup.
-	 */
-
-	flagsLD ~= getLlvmFlagsLD();
 
 
 	/*
@@ -148,17 +152,23 @@ int buildVolt()
 
 	switch(platform) {
 	case "mac":
-		flagsLD ~= ["-L-ldl"];
+		flagsLD ~= "-L-ldl" ~ getLlvmFlagsLD();
+		env.binArgs = ["-lgc"];
 		break;
 
 	case "linux":
-		flagsLD ~= "-L-ldl";
+		flagsLD ~= "-L-ldl" ~ getLlvmFlagsLD();
+		env.binArgs = ["-ldl", "-lgc"];
 		break;
 
 	case "windows":
+		flagsLD ~= "LLVM.lib";
 		target ~= ".exe";
 		sanity ~= ".exe";
 		break;
+
+	// MSVC is stupid.
+	case "x64": goto case "windows";
 
 	default:
 		dout.writefln("Unknown platform! %s", platform);
@@ -199,10 +209,7 @@ int buildVolt()
 	 * Create all the rules.
 	 */
 
-	auto env = new Env();
-	env.ins = new Instance();
 	env.voltaDir = getEnv("VOLTA_DIR", null);
-
 	env.rtDir = env.getFileInVolta("rt");
 	env.wattDir = getEnv("WATT_DIR", env.wattDir);
 	env.teslaDir = getEnv("TESLA_DIR", env.teslaDir);
@@ -327,9 +334,7 @@ Target createSanity(Env env)
 		"--no-stdlib",
 		"-I", env.rtDir ~ "/src",
 		env.rtHost.name,
-		"-o", name,
-		"-l", "gc",
-		src.name];
+		"-o", name] ~ env.binArgs ~ src.name;
 
 	return createSimpleRule(env.ins, name, deps, cmd, args, print);
 }
@@ -353,9 +358,7 @@ Target createBin(Env env, string dir, string exeName, string[] extraArgs...)
 		"-I", env.wattDir ~ "/src",
 		env.rtHost.name,
 		env.wattHost.name,
-		"-o", name,
-		"-l", "gc",
-		"-l", "dl"] ~ extraArgs;
+		"-o", name] ~ env.binArgs ~ extraArgs;
 
 	void funcVolt(Target t) {
 		deps ~= t;
