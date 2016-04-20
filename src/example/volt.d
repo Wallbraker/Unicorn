@@ -6,7 +6,7 @@
  *
  * Uses llvm-config to get info about llvm.
  */
-module volt;
+module example.volt;
 
 import std.string : toLower, format, endsWith;
 import std.cstream : dout;
@@ -147,8 +147,8 @@ int buildVolt()
 	 * Platform specific settings.
 	 */
 
-	machine = getEnv("MACHINE", machine);
-	platform = getEnv("PLATFORM", platform);
+	machine = getEnv("VMACHINE", machine);
+	platform = getEnv("VPLATFORM", platform);
 
 	switch(platform) {
 	case "mac":
