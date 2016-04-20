@@ -4,7 +4,7 @@
 /**
  * Example file that builds the PacketMaker code generator.
  */
-module packetmaker;
+module example.packetmaker;
 
 import std.string : toLower, format;
 import std.cstream : dout;
