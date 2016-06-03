@@ -158,7 +158,7 @@ int buildVolt()
 
 	case "linux":
 		flagsLD ~= "-L-ldl" ~ getLlvmFlagsLD();
-		env.binArgs = ["-ldl", "-lgc"];
+		env.binArgs = ["-ldl", "-lgc", "-lm"];
 		break;
 
 	case "windows":
@@ -287,7 +287,8 @@ string[] getLlvmFlagsLD()
 		"bitreader",
 		"linker",
 		"target",
-		"x86codegen"
+		"x86codegen",
+		"engine",
 	];
 
 	auto output = getOutput(cmdLlvmConfig, args);
